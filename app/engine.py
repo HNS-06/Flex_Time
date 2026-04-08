@@ -546,6 +546,108 @@ class FlexTimeEnv:
             max_steps=self._max_steps,
         )
 
+    # ── dynamic mutators (SaaS UI enhancements) ────────────────
+    def add_employee(self, emp_data: dict) -> Observation:
+        """Dynamically add an employee mid-episode."""
+        new_emp = Employee(
+            id=f"emp{len(self._employees)+1:03d}_{str(uuid.uuid4())[:4]}",
+            availability=[1]*7,
+            **emp_data
+        )
+        self._employees.append(new_emp)
+        self._reevaluate_state()
+        return self.state()
+
+    def edit_employee(self, emp_id: str, edits: dict) -> Observation:
+        """Edit an existing employee."""
+        emp = next((e for e in self._employees if e.id == emp_id), None)
+        if not emp:
+            raise ValueError(f"Employee {emp_id} not found.")
+        if "max_hours_per_week" in edits and edits["max_hours_per_week"] is not None:
+            emp.max_hours_per_week = edits["max_hours_per_week"]
+        if "preferred_shift" in edits and edits["preferred_shift"] is not None:
+            emp.preferred_shift = edits["preferred_shift"]
+        if "preference_weight" in edits and edits["preference_weight"] is not None:
+            emp.preference_weight = edits["preference_weight"]
+            
+        self._reevaluate_state()
+        return self.state()
+
+    def add_shift(self, shift_data: dict) -> Observation:
+        """Dynamically add a shift mid-episode."""
+        new_shift = Shift(
+            id=f"shf{len(self._shifts)+1:03d}_{str(uuid.uuid4())[:4]}",
+            assigned_employee_id=None,
+            **shift_data
+        )
+        self._shifts.append(new_shift)
+        self._reevaluate_state()
+        return self.state()
+
+    def apply_leave(self, emp_id: str, day_start: int, day_end: int) -> Observation:
+        """Process leave request: clear availability and drop assigned shifts."""
+        emp = next((e for e in self._employees if e.id == emp_id), None)
+        if not emp:
+            raise ValueError(f"Employee {emp_id} not found.")
+            
+        # Set availability to 0 for leave days
+        for day in range(day_start, day_end + 1):
+            if 0 <= day <= 6:
+                emp.availability[day] = 0
+                
+        # Drop conflicting shifts
+        hours_dropped = 0.0
+        for s in self._shifts:
+            if s.assigned_employee_id == emp_id and day_start <= s.day <= day_end:
+                s.assigned_employee_id = None
+                hours_dropped += s.duration_hours
+                
+        emp.assigned_hours = max(0.0, emp.assigned_hours - hours_dropped)
+        self._reevaluate_state()
+        return self.state()
+
+    def apply_scenario(self, scenario_type: str) -> Observation:
+        """Mutate environment state based on scenario template."""
+        if scenario_type == "shortage":
+            # Drop availability of ~30% of employees completely (simulated no-show)
+            num_drop = max(1, int(len(self._employees) * 0.3))
+            drop_candidates = random.sample(self._employees, num_drop)
+            for emp in drop_candidates:
+                emp.availability = [0] * 7
+                # drop shifts
+                for s in self._shifts:
+                    if s.assigned_employee_id == emp.id:
+                        s.assigned_employee_id = None
+                        emp.assigned_hours = max(0.0, emp.assigned_hours - s.duration_hours)
+                        
+        elif scenario_type == "surge":
+            # Add 20% more high priority shifts dynamically
+            num_surge = max(2, int(len(self._shifts) * 0.2))
+            skills = list({s.required_skill for s in self._shifts}) or ["cashier", "nurse", "support"]
+            periods = ["morning", "afternoon", "night"]
+            for i in range(num_surge):
+                self._shifts.append(Shift(
+                    id=f"surge_shf_{str(uuid.uuid4())[:4]}",
+                    day=random.randint(0, 6),
+                    period=random.choice(periods),
+                    duration_hours=8.0,
+                    required_skill=random.choice(skills),
+                    demand_level=3.0,  # Peak demand
+                    assigned_employee_id=None
+                ))
+                
+        elif scenario_type == "holiday":
+            # 25% of staff goes on leave for the final 3 days
+            num_leave = max(1, int(len(self._employees) * 0.25))
+            for emp in random.sample(self._employees, num_leave):
+                self.apply_leave(emp.id, 4, 6) # Fri, Sat, Sun
+            # Demand is also multiplied
+            for s in self._shifts:
+                s.demand_level = min(3.0, s.demand_level * 1.5)
+
+        self._reevaluate_state()
+        return self.state()
+
     # ── grader ─────────────────────────────────────────────────
     def grade(self) -> Dict:
         """Compute final normalized score for the completed episode."""

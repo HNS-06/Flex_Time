@@ -424,7 +424,7 @@ function renderEmpTable() {
       <td><div class="wellness-bar"><div class="wb-track"><div class="wb-fill" style="width:${wellness}%;background:${wCol}"></div></div><span class="wb-txt" style="color:${wCol}">${wellness.toFixed(0)}%</span></div></td>
       <td><span class="rel-stars">${'⭐'.repeat(rel)}</span></td>
       <td><span class="chip chip-s">${emp.preferred_shift||'any'}</span></td>
-      ${isAdmin?`<td><button class="btn btn-ghost btn-sm" onclick="toast('Edit coming soon','✏️')">Edit</button></td>`:'<td></td>'}
+      ${isAdmin?`<td><button class="btn btn-ghost btn-sm" onclick="openEditEmpModal('${emp.id}')">Edit</button></td>`:'<td></td>'}
     </tr>`;
   }).join('');
 }
@@ -615,35 +615,184 @@ function selectLeaveOpt(n) {
 }
 
 async function confirmLeave() {
+  const empId = prompt("Enter an employee ID (e.g. emp001) to request leave:", "emp001");
+  if (!empId) return;
+  const fromStr = document.getElementById('leaveFrom').value;
+  const toStr = document.getElementById('leaveTo').value;
+  
+  // Basic date difference to Map to 0-6 days (Hackathon simplification)
+  // Let's assume from_day = 0 (Mon) and to_day = 6 (Sun) for now if left blank
+  const fDay = fromStr ? (new Date(fromStr).getDay() + 6) % 7 : 0;
+  const tDay = toStr ? (new Date(toStr).getDay() + 6) % 7 : 6;
+  
   closeLeaveModal();
   toast('Leave submitted — AI re-scheduling…','🏖',3000);
-  await runAgent();
+  
+  try {
+    const res = await fetch('/leave', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ employee_id: empId, from_day: fDay, to_day: tDay })
+    });
+    if(res.ok) {
+      GS = (await res.json());
+      renderState();
+      // Auto run agent to resolve dropped shifts
+      setTimeout(runAgent, 500); 
+    }
+  } catch(e) { toast('Error applying leave', '❌'); }
 }
 
 // ── ADD EMPLOYEE MODAL ────────────────────────────────────────
 function openAddEmployee() { document.getElementById('addEmpModal').classList.add('open'); }
 function closeAddEmpModal() { document.getElementById('addEmpModal').classList.remove('open'); }
-function submitAddEmployee() {
+async function submitAddEmployee() {
   const name=document.getElementById('newEmpName').value.trim();
   if(!name){toast('Enter a name','⚠️');return;}
-  toast(`${name} added (demo mode)`,'✅');
+  const hours = parseInt(document.getElementById('newEmpHours').value) || 40;
+  const skills = document.getElementById('newEmpSkills').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const pref = document.getElementById('newEmpPref').value;
+  
+  const payload = {
+    name: name,
+    max_hours_per_week: hours,
+    skills: skills.length ? skills : ['cashier'],
+    preferred_shift: pref
+  };
+
+  try {
+    const res = await fetch('/add_employee', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(res.ok) {
+      GS = (await res.json());
+      renderState();
+      renderEmpTable();
+      toast(`${name} added directly to simulation.`,'✅');
+    } else { toast('Failed to add employee', '❌'); }
+  } catch(e) { toast('Error adding employee', '❌'); }
+  
   closeAddEmpModal();
 }
 
-function openAddShift() { toast('Shift builder coming soon','✏️'); }
+function openAddShift() { document.getElementById('addShiftModal').classList.add('open'); }
+function closeAddShiftModal() { document.getElementById('addShiftModal').classList.remove('open'); }
+
+async function submitAddShift() {
+  const payload = {
+    day: parseInt(document.getElementById('newShiftDay').value) || 0,
+    period: document.getElementById('newShiftPeriod').value,
+    duration_hours: parseFloat(document.getElementById('newShiftDuration').value) || 8.0,
+    demand_level: parseFloat(document.getElementById('newShiftDemand').value) || 1.0,
+    required_skill: document.getElementById('newShiftSkill').value.trim() || 'cashier'
+  };
+
+  try {
+    const res = await fetch('/add_shift', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(res.ok) {
+      GS = (await res.json());
+      renderState();
+      renderShiftsTable();
+      renderUnassigned();
+      toast(`Shift added successfully.`,'✅');
+    } else { toast('Failed to add shift', '❌'); }
+  } catch(e) { toast('Error adding shift', '❌'); }
+  
+  closeAddShiftModal();
+}
 
 // ── SCENARIO ─────────────────────────────────────────────────
 async function runScenario(type) {
   const scenarios = {
     shortage:{title:'🚨 Staff Shortage Simulation',desc:'Simulated 30% no-show rate. AI automatically re-assigned available employees to fill critical shifts.',color:'var(--rose)'},
-    surge:{title:'📈 Demand Surge Simulation',desc:'Peak demand spike of +40%. Emergency on-call shifts triggered for 3 employees. Coverage maintained at 87%.',color:'var(--amber)'},
+    surge:{title:'📈 Demand Surge Simulation',desc:'Peak demand spike of +20%. Emergency on-call shifts triggered for 3 employees. Coverage maintained at 87%.',color:'var(--amber)'},
     holiday:{title:'🎄 Holiday Season Simulation',desc:'Reduced availability (25% staff on leave). Premium demand periods covered via overtime and preference overrides.',color:'var(--sky)'}
   };
   const s=scenarios[type];
-  const el=document.getElementById('scenarioResult');
-  if(!el)return;
-  el.innerHTML=`<div class="card-head"><div class="card-title">${s.title}</div></div><div class="card-body"><div class="alert alert-s"><div class="a-icon">📊</div><div><div class="a-title">Scenario Complete</div><div class="a-msg">${s.desc}</div></div></div></div>`;
-  toast(`Scenario: ${type}`,'🎲',3000);
+  
+  try {
+    const res = await fetch('/scenario/' + type, { method: 'POST' });
+    if(res.ok) {
+      GS = (await res.json());
+      renderState();
+      const el=document.getElementById('scenarioResult');
+      if(el) {
+        el.innerHTML=`<div class="card-head"><div class="card-title">${s.title}</div></div><div class="card-body"><div class="alert alert-s"><div class="a-icon">📊</div><div><div class="a-title">Scenario Injected Structurally</div><div class="a-msg">${s.desc} -> <br/><b>The environment has been mutated securely mid-episode.</b><br/>Run the AI agent to solve it!</div></div></div></div>`;
+      }
+      toast(`Scenario applied: ${type}`,'🎲',3000);
+    } else { toast('Failed to apply scenario', '❌'); }
+  } catch(e) { toast('Network error', '❌'); }
+}
+
+// ── EXPORT CSV ────────────────────────────────────────────────
+function exportCSV() {
+  if (!GS) { toast('No data to export', '⚠️'); return; }
+  
+  let csv = 'Employee ID,Name,Day,Period,Skill,Hours\n';
+  const shiftsMap = Object.fromEntries((GS.shifts||[]).map(s=>[s.id, s]));
+  
+  (GS.employees||[]).forEach(emp => {
+    const assignedShifts = (GS.shifts||[]).filter(s => s.assigned_employee_id === emp.id);
+    if(assignedShifts.length === 0) {
+      csv += `${emp.id},"${emp.name}",None,None,None,0\n`;
+    } else {
+      assignedShifts.forEach(s => {
+        csv += `${emp.id},"${emp.name}",${DAYS[s.day]||s.day},${s.period},${s.required_skill},${s.duration_hours}\n`;
+      });
+    }
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", `flextime_schedule_${GS.task_id||'export'}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  toast('CSV Exported', '📤');
+}
+
+// ── EDIT EMPLOYEE ─────────────────────────────────────────────
+function openEditEmpModal(empId) {
+  if(!GS) return;
+  const emp = GS.employees.find(e=>e.id===empId);
+  if(!emp) return;
+  document.getElementById('editEmpId').value = emp.id;
+  document.getElementById('editEmpHours').value = emp.max_hours_per_week;
+  document.getElementById('editEmpPref').value = emp.preferred_shift || 'morning';
+  document.getElementById('editEmpModal').classList.add('open');
+}
+
+function closeEditEmpModal() { document.getElementById('editEmpModal').classList.remove('open'); }
+
+async function submitEditEmployee() {
+  const empId = document.getElementById('editEmpId').value;
+  const hours = parseInt(document.getElementById('editEmpHours').value) || 40;
+  const pref = document.getElementById('editEmpPref').value;
+
+  try {
+    const res = await fetch('/edit_employee', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ employee_id: empId, max_hours_per_week: hours, preferred_shift: pref })
+    });
+    if(res.ok) {
+      GS = (await res.json());
+      renderState();
+      renderEmpTable();
+      toast(`Employee details updated.`,'✅');
+    } else { toast('Failed to edit employee', '❌'); }
+  } catch(e) { toast('Error editing employee', '❌'); }
+  
+  closeEditEmpModal();
 }
 
 // ── INIT ─────────────────────────────────────────────────────

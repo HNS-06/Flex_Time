@@ -195,7 +195,7 @@
         <div class="flex items-center gap-2">
           <div style="flex:1"><div style="font-size:1.1rem;font-weight:800">👥 Employee Roster</div><div class="text-sm text-muted">Full workforce profiles with wellness and reliability tracking</div></div>
           <button class="btn btn-ghost btn-sm admin-only" onclick="openAddEmployee()">+ Add Employee</button>
-          <button class="btn btn-ghost btn-sm admin-only">📤 Export CSV</button>
+          <button class="btn btn-ghost btn-sm admin-only" onclick="exportCSV()">📤 Export CSV</button>
         </div>
         <div class="card">
           <div class="card-body" style="padding:.5rem">
@@ -571,6 +571,50 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeAddEmpModal()">Cancel</button>
       <button class="btn btn-primary" onclick="submitAddEmployee()">Add Employee</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD SHIFT MODAL -->
+<div class="modal-bg" id="addShiftModal">
+  <div class="modal">
+    <div class="modal-title">⏰ Add New Shift</div>
+    <div class="fl">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Day (0=Mon, 6=Sun)</label><input type="number" class="form-input" id="newShiftDay" value="0" min="0" max="6"/></div>
+        <div class="form-group"><label class="form-label">Period</label>
+          <select class="form-select" id="newShiftPeriod"><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="night">Night</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Duration (Hrs)</label><input type="number" class="form-input" id="newShiftDuration" value="8" min="1" max="12"/></div>
+        <div class="form-group"><label class="form-label">Demand Level (1-3)</label><input type="number" class="form-input" id="newShiftDemand" value="1" min="1" max="3" step="0.5"/></div>
+      </div>
+      <div class="form-group"><label class="form-label">Required Skill</label><input class="form-input" id="newShiftSkill" placeholder="nurse, cashier, etc."/></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAddShiftModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddShift()">Add Shift</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT EMP MODAL -->
+<div class="modal-bg" id="editEmpModal">
+  <div class="modal">
+    <div class="modal-title">✏️ Edit Employee</div>
+    <div class="fl">
+      <input type="hidden" id="editEmpId" />
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Max Hours/Week</label><input type="number" class="form-input" id="editEmpHours" min="8" max="80"/></div>
+        <div class="form-group"><label class="form-label">Preferred Shift</label>
+          <select class="form-select" id="editEmpPref"><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="night">Night</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeEditEmpModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEditEmployee()">Save Changes</button>
     </div>
   </div>
 </div>

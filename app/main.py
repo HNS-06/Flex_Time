@@ -16,7 +16,10 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.engine import FlexTimeEnv, TASK_CONFIGS
-from app.models import Action, Observation, ResetRequest, StepResult
+from app.models import (
+    Action, Observation, ResetRequest, StepResult,
+    AddEmployeeRequest, EditEmployeeRequest, AddShiftRequest, LeaveRequest
+)
 
 # ── App ───────────────────────────────────────────────────────
 app = FastAPI(
@@ -205,6 +208,53 @@ async def baseline(
         return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Baseline error: {str(e)}")
+
+
+# ══════════════════════════════════════════════════════════════
+#  SAAS / DYNAMIC UI ENDPOINTS
+# ══════════════════════════════════════════════════════════════
+
+@app.post("/add_employee", response_model=Observation, tags=["SaaS"])
+async def add_employee(body: AddEmployeeRequest):
+    """Dynamically add an employee. Mid-episode structural change."""
+    try:
+        return _env.add_employee(body.model_dump())
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/edit_employee", response_model=Observation, tags=["SaaS"])
+async def edit_employee(body: EditEmployeeRequest):
+    """Dynamically edit an employee."""
+    try:
+        return _env.edit_employee(body.employee_id, body.model_dump(exclude_unset=True))
+    except (RuntimeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/add_shift", response_model=Observation, tags=["SaaS"])
+async def add_shift(body: AddShiftRequest):
+    """Dynamically add a shift. Mid-episode structural change."""
+    try:
+        return _env.add_shift(body.model_dump())
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/leave", response_model=Observation, tags=["SaaS"])
+async def leave_request(body: LeaveRequest):
+    """Dynamically take an employee offline and drop their shifts."""
+    try:
+        return _env.apply_leave(body.employee_id, body.from_day, body.to_day)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/scenario/{scenario_type}", response_model=Observation, tags=["SaaS"])
+async def apply_scenario(scenario_type: str):
+    """Mutate environment based on a scenario."""
+    if scenario_type not in ["shortage", "surge", "holiday"]:
+        raise HTTPException(status_code=400, detail="Invalid scenario")
+    try:
+        return _env.apply_scenario(scenario_type)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ══════════════════════════════════════════════════════════════

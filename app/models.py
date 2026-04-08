@@ -165,6 +165,39 @@ class ResetRequest(BaseModel):
     seed: Optional[int] = Field(None, description="Random seed for reproducible episodes")
 
 
+class AddEmployeeRequest(BaseModel):
+    """Request body to dynamically add an employee."""
+    name: str
+    skills: List[str]
+    max_hours_per_week: int = 40
+    preferred_shift: Optional[str] = None
+
+
+class EditEmployeeRequest(BaseModel):
+    """Request body to edit an employee."""
+    employee_id: str
+    max_hours_per_week: Optional[int] = None
+    preferred_shift: Optional[str] = None
+    preference_weight: Optional[float] = None
+
+
+class AddShiftRequest(BaseModel):
+    """Request body to dynamically add a shift."""
+    day: int = Field(..., ge=0, le=6)
+    period: str
+    duration_hours: float = 8.0
+    required_skill: str
+    demand_level: float = 1.0
+
+
+class LeaveRequest(BaseModel):
+    """Request body to apply for leave."""
+    employee_id: str
+    from_day: int = Field(..., ge=0, le=6)
+    to_day: int = Field(..., ge=0, le=6)
+    reason: Optional[str] = None
+
+
 class TaskInfo(BaseModel):
     """Metadata about a single task, returned by GET /tasks."""
     id: str

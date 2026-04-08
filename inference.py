@@ -21,8 +21,7 @@ from app.models import Action
 # Mandatory environment variables with defaults
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
-# As per instructions, HF_TOKEN acts as the API key
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or "dummy-key-for-greedy-fallback"
+HF_TOKEN = os.getenv("HF_TOKEN")
 BENCHMARK = "FlexTime"
 
 MAX_STEPS = 120
@@ -165,7 +164,7 @@ def run_task(client: OpenAI, env: FlexTimeEnv, task_id: str):
 
 
 def main():
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
     env = FlexTimeEnv()
     
     tasks = ["task_easy", "task_medium", "task_hard"]

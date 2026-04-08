@@ -1,24 +1,5 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
 ---
 title: FlexTime AI
-emoji: 🦀
-colorFrom: pink
-colorTo: pink
-sdk: docker
-pinned: false
-license: mit
----
-
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
-=======
-# Flex_Time
->>>>>>> 37419b5 (Initial commit)
-=======
-# Flex_Time
-=======
----
-title: FlexTime
 emoji: 🕐
 colorFrom: green
 colorTo: blue
@@ -33,7 +14,7 @@ tags:
   - real-world
 pinned: false
 license: mit
-short_description: Real-world AI workforce scheduling OpenEnv environment
+short_description: Real-world AI workforce scheduling OpenEnv environment.
 ---
 
 # 🕐 FlexTime — AI Workforce Scheduling Environment
@@ -416,5 +397,3 @@ to benchmark and train agents on a problem with immediate real-world deployment 
 ## 📄 License
 
 MIT © FlexTime Team
->>>>>>> 7048b31 (initial commit)
->>>>>>> bba6336 (initial commit)

@@ -15,8 +15,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from openai import OpenAI
 
-from app.engine import FlexTimeEnv, TASK_CONFIGS
-from app.models import Action
+from server.engine import FlexTimeEnv, TASK_CONFIGS
+from server.models import Action
 
 # Mandatory environment variables with defaults
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")

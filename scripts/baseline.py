@@ -30,8 +30,8 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from app.engine import FlexTimeEnv, TASK_CONFIGS
-from app.models import Action
+from server.engine import FlexTimeEnv, TASK_CONFIGS
+from server.models import Action
 
 
 # ──────────────────────────────────────────────────────────────

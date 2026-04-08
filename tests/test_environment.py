@@ -11,9 +11,9 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from app.main import app
-from app.engine import FlexTimeEnv, TASK_CONFIGS
-from app.models import Action, Observation, Reward, StepResult
+from server.app import app
+from server.engine import FlexTimeEnv, TASK_CONFIGS
+from server.models import Action, Observation, Reward, StepResult
 
 
 # ── Fixtures ─────────────────────────────────────────────────

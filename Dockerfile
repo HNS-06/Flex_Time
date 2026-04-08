@@ -44,7 +44,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
 # PYTHONPATH ensures scripts.baseline can be imported by app/main.py
 ENV PYTHONPATH=/app
 
-CMD ["uvicorn", "app.main:app", \
+CMD ["uvicorn", "server.app:app", \
      "--host", "0.0.0.0", \
      "--port", "7860", \
      "--workers", "1", \

@@ -10,7 +10,7 @@ import uuid
 from copy import deepcopy
 from typing import Dict, List, Optional, Tuple
 
-from app.models import (
+from server.models import (
     Action, ConstraintViolation, Employee, Observation,
     Reward, ScheduleMetrics, Shift, StepResult,
 )

@@ -15,8 +15,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.engine import FlexTimeEnv, TASK_CONFIGS
-from app.models import (
+from server.engine import FlexTimeEnv, TASK_CONFIGS
+from server.models import (
     Action, Observation, ResetRequest, StepResult,
     AddEmployeeRequest, EditEmployeeRequest, AddShiftRequest, LeaveRequest
 )

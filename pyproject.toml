@@ -11,6 +11,9 @@ dependencies = [
     "openenv-core>=0.1.0"
 ]
 
+[project.scripts]
+server = "server.app:app"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

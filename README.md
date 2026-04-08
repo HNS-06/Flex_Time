@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ---
 title: FlexTime AI
 emoji: 🦀
@@ -9,3 +10,6 @@ license: mit
 ---
 
 Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+=======
+# Flex_Time
+>>>>>>> 37419b5 (Initial commit)

@@ -89,10 +89,12 @@ async def health():
     ),
     tags=["OpenEnv Core"],
 )
-async def reset(body: ResetRequest):
+async def reset(body: ResetRequest = None):
     """POST /reset — OpenEnv spec required endpoint."""
     try:
-        obs = _env.reset(task_id=body.task_id, seed=body.seed)
+        task_id = body.task_id if body and body.task_id else "task_medium"
+        seed = body.seed if body else None
+        obs = _env.reset(task_id=task_id, seed=seed)
         return obs
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

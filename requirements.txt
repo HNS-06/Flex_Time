@@ -1,0 +1,26 @@
+# FlexTime — Python dependencies
+# Pin exact versions for reproducibility
+
+# Web framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.12
+
+# Data validation (OpenEnv typed models)
+pydantic==2.10.3
+
+# HTTP client (for tests)
+httpx==0.27.2
+
+# OpenAI API client (for LLM baseline)
+openai==1.57.4
+
+# Config parsing
+pyyaml==6.0.2
+
+# Numerics (reward shaping utilities)
+numpy==2.2.0
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0

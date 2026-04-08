@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FlexTime — AI Workforce Scheduling</title>
+<link rel="stylesheet" href="/static/style.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ═══════════════ LOGIN ═══════════════ -->
+<div id="loginPage" class="login-page">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-badge">F</div>
+      <span class="login-brand">FlexTime</span>
+    </div>
+    <div class="login-sub">AI Workforce Scheduling Environment</div>
+    <div class="section-title" style="text-align:center;margin-bottom:.5rem">Quick Sign In</div>
+    <div class="login-accounts">
+      <div class="la-btn" onclick="quickLogin('admin')">🛡 Admin</div>
+      <div class="la-btn" onclick="quickLogin('manager')">📋 Manager</div>
+      <div class="la-btn" onclick="quickLogin('employee')">👤 Employee</div>
+      <div class="la-btn" onclick="quickLogin('ceo')">👔 CEO</div>
+    </div>
+    <div class="fl">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input id="loginUser" class="form-input" placeholder="admin / manager / employee / ceo" onkeypress="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input id="loginPass" type="password" class="form-input" placeholder="••••••••" onkeypress="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <button class="btn btn-primary" style="width:100%;padding:.55rem" onclick="doLogin()">Sign In →</button>
+    </div>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-hint">Password can be anything — this is a demo environment</div>
+  </div>
+</div>
+
+<!-- ═══════════════ APP SHELL ═══════════════ -->
+<div id="appShell" class="app-shell">
+
+  <!-- TOP NAV -->
+  <nav class="topnav">
+    <a class="brand" href="#">
+      <div class="brand-badge">F</div>FlexTime
+    </a>
+    <div class="live-pill"><div class="live-dot"></div>OpenEnv Live</div>
+    <div class="nav-sep"></div>
+    <div class="nav-ctrl">
+      <label>🏥 Workplace:</label>
+      <select class="nav-select" id="workplaceType" onchange="onWorkplaceChange()">
+        <option>Hospital</option><option>Call Center</option><option>Restaurant</option><option>IT/On-call</option><option>Retail</option>
+      </select>
+    </div>
+    <div class="nav-ctrl">
+      <label>Task:</label>
+      <select class="nav-select" id="taskSelect" onchange="onTaskChange()">
+        <option value="task_easy">🟢 Easy</option>
+        <option value="task_medium" selected>🟡 Medium</option>
+        <option value="task_hard">🔴 Hard</option>
+      </select>
+    </div>
+    <div class="nav-ctrl">
+      <label>Scenario:</label>
+      <select class="nav-select" id="scenarioSelect">
+        <option>Sunrise ICU Week 1</option><option>Peak Demand Surge</option><option>Staff Shortage</option><option>Holiday Season</option>
+      </select>
+    </div>
+    <div class="nav-sep"></div>
+    <div class="nav-right">
+      <button class="btn btn-ghost btn-sm" id="runAgentBtn" onclick="runAgent()">▶ Run Agent</button>
+      <button class="btn btn-primary btn-sm" onclick="runBaseline()">⚡ Baseline</button>
+      <div class="nav-sep"></div>
+      <div class="nav-user" id="navUser">
+        <div class="nav-avatar" id="navAvatar">A</div>
+        <div><div class="nav-uname" id="navUname">User</div><div class="nav-urole" id="navUrole">Role</div></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Sign out</button>
+    </div>
+  </nav>
+
+  <!-- BODY -->
+  <div class="body-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-section">Main</div>
+      <div class="sb-item active" onclick="showView('dashboard',this)" id="sb-dashboard"><span class="sb-icon">📊</span>Dashboard</div>
+      <div class="sb-item" onclick="showView('schedule',this)" id="sb-schedule"><span class="sb-icon">📅</span>Schedule Board<span class="sb-badge sb-b-amber" id="sb-conflicts-badge">0</span></div>
+      <div class="sb-item manager-only" onclick="showView('scenario',this)" id="sb-scenario"><span class="sb-icon">🎲</span>Scenario Sim</div>
+
+      <div class="sb-section admin-only manager-only">Workforce</div>
+      <div class="sb-item admin-only" onclick="showView('employees',this)" id="sb-employees"><span class="sb-icon">👥</span>Employees</div>
+      <div class="sb-item admin-only manager-only" onclick="showView('shifts',this)" id="sb-shifts"><span class="sb-icon">⏰</span>Shifts</div>
+      <div class="sb-item manager-only admin-only" onclick="showView('constraints',this)"><span class="sb-icon">⚖️</span>Constraints</div>
+
+      <div class="sb-section">AI Engine</div>
+      <div class="sb-item manager-only admin-only" onclick="showView('simulation',this)" id="sb-simulation"><span class="sb-icon">🤖</span>AI Simulation<span class="sb-badge sb-b-green" id="sb-steps-badge">0</span></div>
+      <div class="sb-item" onclick="showView('analytics',this)"><span class="sb-icon">📈</span>Analytics</div>
+      <div class="sb-item manager-only admin-only" onclick="showView('xai',this)"><span class="sb-icon">🧠</span>XAI Logs</div>
+      <div class="sb-item" onclick="showView('fairness',this)"><span class="sb-icon">🧘</span>Fairness</div>
+
+      <div class="sb-section admin-only">System</div>
+      <div class="sb-item admin-only ceo-only" onclick="showView('tasks',this)"><span class="sb-icon">🏆</span>Tasks & Bench</div>
+      <div class="sb-item admin-only" onclick="showView('submission',this)"><span class="sb-icon">🚀</span>Submission</div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content" id="mainContent">
+
+      <!-- ══ DASHBOARD ══ -->
+      <div class="view active" id="view-dashboard">
+        <div class="kpi-grid" id="kpiGrid">
+          <div class="kpi"><div class="kpi-icon">📋</div><div class="kpi-label">Shift Coverage</div><div class="kpi-val g" id="kpi-coverage">—</div><div class="kpi-sub">of shifts filled</div><div class="kpi-bar" style="background:linear-gradient(90deg,var(--green),var(--sky))"></div></div>
+          <div class="kpi"><div class="kpi-icon">⚖️</div><div class="kpi-label">Fairness Index</div><div class="kpi-val s" id="kpi-fairness">—</div><div class="kpi-sub">hour equity score</div><div class="kpi-bar" style="background:linear-gradient(90deg,var(--sky),var(--blue))"></div></div>
+          <div class="kpi"><div class="kpi-icon">⚠️</div><div class="kpi-label">Violations</div><div class="kpi-val r" id="kpi-violations">—</div><div class="kpi-sub">hard constraints broken</div><div class="kpi-bar" style="background:linear-gradient(90deg,var(--rose),var(--amber))"></div></div>
+          <div class="kpi"><div class="kpi-icon">🔥</div><div class="kpi-label">Agent Score</div><div class="kpi-val a" id="kpi-score">—</div><div class="kpi-sub" id="kpi-score-sub">run baseline to evaluate</div><div class="kpi-bar" style="background:linear-gradient(90deg,var(--amber),var(--green))"></div></div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">📅 Weekly Schedule Overview</div>
+              <div class="card-actions">
+                <button class="btn btn-ghost btn-sm" onclick="showView('schedule',null)">Full View →</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="sg-wrap" id="dash-sg-wrap">
+                <div id="dashScheduleGrid">Loading…</div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">📈 Demand vs Coverage</div></div>
+            <div class="card-body">
+              <div class="chart-box"><canvas id="demandChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="card-head"><div class="card-title">🚨 Live Alerts</div><span class="chip chip-r" id="alertCount">0</span></div>
+            <div class="card-body" id="alertsList">
+              <div class="alert alert-s"><div class="a-icon">ℹ️</div><div><div class="a-title">Initializing…</div><div class="a-msg">Loading environment state.</div></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">⚖️ Fairness Distribution</div></div>
+            <div class="card-body" id="fairnessBars">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SCHEDULE BOARD ══ -->
+      <div class="view" id="view-schedule">
+        <div class="flex items-center gap-2" style="flex-wrap:wrap">
+          <div style="flex:1"><div style="font-size:1.1rem;font-weight:800">📅 Schedule Board</div><div class="text-sm text-muted">Drag employees to assign shifts · Click a shift tag to remove</div></div>
+          <button class="btn btn-ghost btn-sm" onclick="openLeaveModal()">🏖 Leave Request</button>
+          <button class="btn btn-primary btn-sm" onclick="runAgent()">⚡ Auto-Schedule</button>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Live Shift Schedule</div>
+            <div class="card-actions">
+              <span class="chip chip-g" id="sched-coverage-chip">—% filled</span>
+              <span class="chip chip-r" id="sched-conflict-chip">0 conflicts</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="sg-wrap"><div id="mainScheduleGrid">Loading…</div></div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="card-head"><div class="card-title">🟢 Unassigned Shifts</div><span class="chip chip-a" id="unassigned-count">—</span></div>
+            <div class="card-body" id="unassignedList" style="max-height:260px;overflow-y:auto">Loading…</div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">⚠️ Conflicts</div></div>
+            <div class="card-body" id="conflictsList">No conflicts</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ EMPLOYEES ══ -->
+      <div class="view" id="view-employees">
+        <div class="flex items-center gap-2">
+          <div style="flex:1"><div style="font-size:1.1rem;font-weight:800">👥 Employee Roster</div><div class="text-sm text-muted">Full workforce profiles with wellness and reliability tracking</div></div>
+          <button class="btn btn-ghost btn-sm admin-only" onclick="openAddEmployee()">+ Add Employee</button>
+          <button class="btn btn-ghost btn-sm admin-only">📤 Export CSV</button>
+        </div>
+        <div class="card">
+          <div class="card-body" style="padding:.5rem">
+            <table class="etable" id="empTable">
+              <thead><tr><th>ID</th><th>Name</th><th>Skills</th><th>Availability</th><th>Hours</th><th>Wellness</th><th>Reliability</th><th>Pref Shift</th><th class="admin-only">Actions</th></tr></thead>
+              <tbody id="empTableBody"><tr><td colspan="9" style="text-align:center;color:var(--text3);padding:1.5rem">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SHIFTS ══ -->
+      <div class="view" id="view-shifts">
+        <div class="flex items-center gap-2">
+          <div style="flex:1"><div style="font-size:1.1rem;font-weight:800">⏰ Shift Definitions</div><div class="text-sm text-muted">All shift types, requirements, and staffing levels</div></div>
+          <button class="btn btn-primary btn-sm admin-only manager-only" onclick="openAddShift()">+ New Shift</button>
+        </div>
+        <div class="card">
+          <div class="card-body" style="padding:.5rem">
+            <table class="etable" id="shiftsTable">
+              <thead><tr><th>ID</th><th>Day</th><th>Time</th><th>Period</th><th>Req. Skills</th><th>Min Staff</th><th>Duration</th><th>Priority</th><th>Assigned</th></tr></thead>
+              <tbody id="shiftsTableBody"><tr><td colspan="9" style="text-align:center;color:var(--text3);padding:1.5rem">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SIMULATION ══ -->
+      <div class="view" id="view-simulation">
+        <div style="font-size:1.1rem;font-weight:800">🤖 AI Simulation Control</div>
+        <div class="grid3">
+          <div class="card">
+            <div class="card-body" style="text-align:center">
+              <div class="kpi-label">Steps Taken</div>
+              <div class="kpi-val b" id="sim-steps">0</div>
+              <div class="kpi-sub" id="sim-steps-sub">/ 60 max</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body" style="text-align:center">
+              <div class="kpi-label">Episode Reward</div>
+              <div class="kpi-val g" id="sim-reward">0.00</div>
+              <div class="kpi-sub">cumulative</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body" style="text-align:center">
+              <div class="kpi-label">Agent Score</div>
+              <div class="kpi-val a" id="sim-score">—</div>
+              <div class="kpi-sub">0.0 – 1.0 range</div>
+            </div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-head"><div class="card-title">🎯 Grading & Scoring</div></div>
+            <div class="card-body">
+              <div class="gauge-wrap" id="gaugeWrap" style="margin-bottom:1rem">
+                <svg class="gauge-svg" viewBox="0 0 140 80" id="gaugeSvg">
+                  <path d="M10,75 A60,60 0 0,1 130,75" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="12" stroke-linecap="round"/>
+                  <path d="M10,75 A60,60 0 0,1 130,75" fill="none" stroke="var(--green)" stroke-width="12" stroke-linecap="round" stroke-dasharray="188" stroke-dashoffset="188" id="gaugeArc" style="transition:stroke-dashoffset 1s ease"/>
+                </svg>
+                <div class="gauge-val text-green" id="gaugeVal">—</div>
+                <div class="gauge-grade" id="gaugeGrade" style="background:var(--green-d);color:var(--green)">—</div>
+                <div class="gauge-lbl">Unbiase Score</div>
+              </div>
+              <div class="divider"></div>
+              <div style="font-size:.7rem;font-weight:700;margin-bottom:.4rem;color:var(--text2)">Reward Breakdown</div>
+              <div id="rewardBreakdown">Run simulation to see breakdown</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">📈 Reward Progression</div></div>
+            <div class="card-body">
+              <div class="chart-box-lg"><canvas id="rewardChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">⚙️ Simulation Controls</div>
+            <div class="card-actions">
+              <button class="btn btn-ghost btn-sm" onclick="resetSim()">↺ Reset</button>
+              <button class="btn btn-amber btn-sm" onclick="stepSim()">Step +1</button>
+              <button class="btn btn-primary btn-sm" id="runSimBtn" onclick="runAgent()">▶ Run Full</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="font-size:.68rem;font-family:var(--mono);color:var(--text2);line-height:1.9;max-height:160px;overflow-y:auto" id="simLog">Ready to simulate…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ ANALYTICS ══ -->
+      <div class="view" id="view-analytics">
+        <div style="font-size:1.1rem;font-weight:800">📈 Analytics Dashboard</div>
+        <div class="kpi-grid">
+          <div class="card"><div class="card-body" style="text-align:center"><div class="kpi-label">Utilization</div><div class="kpi-val g" id="an-util">—</div></div></div>
+          <div class="card"><div class="card-body" style="text-align:center"><div class="kpi-label">Overtime Hrs</div><div class="kpi-val a" id="an-ot">0</div></div></div>
+          <div class="card"><div class="card-body" style="text-align:center"><div class="kpi-label">Demand Unmet</div><div class="kpi-val r" id="an-unmet">—</div></div></div>
+          <div class="card"><div class="card-body" style="text-align:center"><div class="kpi-label">Skill Coverage</div><div class="kpi-val s" id="an-skill">—</div></div></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-head"><div class="card-title">🌡 Demand Heatmap</div></div>
+            <div class="card-body">
+              <div style="display:flex;gap:.3rem;margin-bottom:.4rem;font-size:.6rem;color:var(--text3)">
+                <span style="flex:1;text-align:center">Mon</span><span style="flex:1;text-align:center">Tue</span><span style="flex:1;text-align:center">Wed</span><span style="flex:1;text-align:center">Thu</span><span style="flex:1;text-align:center">Fri</span><span style="flex:1;text-align:center">Sat</span><span style="flex:1;text-align:center">Sun</span>
+              </div>
+              <div class="heatmap" id="demandHeatmap"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">📊 Coverage by Day</div></div>
+            <div class="card-body"><div class="chart-box-lg"><canvas id="coverageChart"></canvas></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">✅ Skill Coverage Matrix</div></div>
+          <div class="card-body"><div class="chart-box-lg"><canvas id="skillChart"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- ══ XAI ══ -->
+      <div class="view" id="view-xai">
+        <div style="font-size:1.1rem;font-weight:800">🧠 Explainable AI Decision Logs</div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Why This Assignment?</div><button class="btn btn-ghost btn-sm" onclick="clearXai()">Clear</button></div>
+          <div class="card-body" id="xaiLogs">
+            <div class="xai-entry"><span class="xai-ts">[00:00]</span> System ready. Run the agent or make manual assignments to see decision explanations.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ FAIRNESS ══ -->
+      <div class="view" id="view-fairness">
+        <div style="font-size:1.1rem;font-weight:800">🧘 Fairness & Wellness Engine</div>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-head"><div class="card-title">⚖️ Hour Distribution</div></div>
+            <div class="card-body" id="fairnessBarsDetail">Loading…</div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">🔥 Wellness Scores</div></div>
+            <div class="card-body" id="wellnessBars">Loading…</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">📊 Night Shift Rotation</div></div>
+          <div class="card-body"><div class="chart-box-lg"><canvas id="nightShiftChart"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- ══ SCENARIO ══ -->
+      <div class="view" id="view-scenario">
+        <div style="font-size:1.1rem;font-weight:800">🎲 Scenario Simulation</div>
+        <div class="grid3">
+          <div class="card" style="cursor:pointer;border:1px solid var(--border)" onclick="runScenario('shortage')">
+            <div class="card-body" style="text-align:center">
+              <div style="font-size:2rem;margin-bottom:.4rem">🚨</div>
+              <div style="font-weight:700;margin-bottom:.3rem">Staff Shortage</div>
+              <div class="text-xs text-muted">Simulate 30% no-show rate and auto-reallocation</div>
+            </div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="runScenario('surge')">
+            <div class="card-body" style="text-align:center">
+              <div style="font-size:2rem;margin-bottom:.4rem">📈</div>
+              <div style="font-weight:700;margin-bottom:.3rem">Demand Surge</div>
+              <div class="text-xs text-muted">Peak hour spike requiring emergency staffing</div>
+            </div>
+          </div>
+          <div class="card" style="cursor:pointer" onclick="runScenario('holiday')">
+            <div class="card-body" style="text-align:center">
+              <div style="font-size:2rem;margin-bottom:.4rem">🎄</div>
+              <div style="font-weight:700;margin-bottom:.3rem">Holiday Season</div>
+              <div class="text-xs text-muted">Reduced availability with premium demand</div>
+            </div>
+          </div>
+        </div>
+        <div class="card" id="scenarioResult">
+          <div class="card-head"><div class="card-title">📋 Scenario Results</div></div>
+          <div class="card-body text-muted text-sm">Click a scenario above to simulate it.</div>
+        </div>
+      </div>
+
+      <!-- ══ CONSTRAINTS ══ -->
+      <div class="view" id="view-constraints">
+        <div style="font-size:1.1rem;font-weight:800">⚖️ Constraint System</div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">🔴 Hard Constraints</div></div>
+          <div class="card-body">
+            <div class="step-row"><div class="step-n" style="background:var(--rose-d);border-color:var(--rose);color:var(--rose)">⛔</div><div><div class="step-title">No Overlapping Shifts</div><div class="step-desc">An employee cannot be assigned two shifts on the same day and time period.</div></div></div>
+            <div class="step-row"><div class="step-n" style="background:var(--rose-d);border-color:var(--rose);color:var(--rose)">⛔</div><div><div class="step-title">Skill Requirements</div><div class="step-desc">Each shift has a minimum required skill level. Only qualified employees can be assigned.</div></div></div>
+            <div class="step-row"><div class="step-n" style="background:var(--rose-d);border-color:var(--rose);color:var(--rose)">⛔</div><div><div class="step-title">Availability Windows</div><div class="step-desc">Employees can only be assigned on days they are marked available.</div></div></div>
+            <div class="step-row"><div class="step-n" style="background:var(--rose-d);border-color:var(--rose);color:var(--rose)">⛔</div><div><div class="step-title">Maximum Weekly Hours</div><div class="step-desc">Assignments cannot cause an employee to exceed their weekly hour cap.</div></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">🔵 Soft Constraints</div></div>
+          <div class="card-body">
+            <div class="step-row"><div class="step-n" style="background:var(--sky-d);border-color:var(--sky-b,var(--sky));color:var(--sky)">💡</div><div><div class="step-title">Fair Hour Distribution</div><div class="step-desc">Maximize equity across the team — minimizes max-min hour delta.</div></div></div>
+            <div class="step-row"><div class="step-n" style="background:var(--sky-d);border-color:var(--sky-b,var(--sky));color:var(--sky)">💡</div><div><div class="step-title">Shift Preferences</div><div class="step-desc">Honor employee morning/afternoon/night preferences where possible.</div></div></div>
+            <div class="step-row"><div class="step-n" style="background:var(--sky-d);border-color:var(--sky-b,var(--sky));color:var(--sky)">💡</div><div><div class="step-title">Balanced Night Rotation</div><div class="step-desc">Avoid assigning repeated consecutive night shifts to the same employee.</div></div></div>
+            <div class="step-row"><div class="step-n" style="background:var(--sky-d);border-color:var(--sky-b,var(--sky));color:var(--sky)">💡</div><div><div class="step-title">Minimum Rest Gap</div><div class="step-desc">Enforce at least 8 hours of rest between consecutive shift ends.</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ TASKS & BENCH ══ -->
+      <div class="view" id="view-tasks">
+        <div style="font-size:1.1rem;font-weight:800">🏆 Tasks & Benchmarks</div>
+        <div class="grid3">
+          <div class="card" onclick="resetToTask('task_easy')" style="cursor:pointer">
+            <div class="card-head"><div class="card-title"><span class="chip chip-g">Easy</span> Basic Coverage</div></div>
+            <div class="card-body">
+              <div class="text-sm text-muted mb-1">5 employees, 5 shifts — fill all slots without overlap.</div>
+              <div class="flex items-center gap-1 mt-1"><span class="text-xs text-muted">Target:</span><span class="chip chip-g">≥ 0.95</span></div>
+            </div>
+          </div>
+          <div class="card" onclick="resetToTask('task_medium')" style="cursor:pointer">
+            <div class="card-head"><div class="card-title"><span class="chip chip-a">Medium</span> Weekly Schedule</div></div>
+            <div class="card-body">
+              <div class="text-sm text-muted mb-1">8 employees, 30 shifts — skills + availability + 40h limit.</div>
+              <div class="flex items-center gap-1 mt-1"><span class="text-xs text-muted">Target:</span><span class="chip chip-a">≥ 0.85</span></div>
+            </div>
+          </div>
+          <div class="card" onclick="resetToTask('task_hard')" style="cursor:pointer">
+            <div class="card-head"><div class="card-title"><span class="chip chip-r">Hard</span> Fair Optimization</div></div>
+            <div class="card-body">
+              <div class="text-sm text-muted mb-1">12 employees, 50 shifts with 3 seeded conflicts.</div>
+              <div class="flex items-center gap-1 mt-1"><span class="text-xs text-muted">Target:</span><span class="chip chip-r">≥ 0.75</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card" id="taskResults">
+          <div class="card-head"><div class="card-title">📊 Benchmark Results</div><button class="btn btn-primary btn-sm" onclick="runAllTasks()">▶ Run All Tasks</button></div>
+          <div class="card-body" id="taskResultsBody">
+            <div class="text-sm text-muted">Click a task above or "Run All Tasks" to benchmark.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SUBMISSION ══ -->
+      <div class="view" id="view-submission">
+        <div style="font-size:1.1rem;font-weight:800">🚀 Submission Checklist</div>
+        <div class="card">
+          <div class="card-body">
+            <div class="step-row"><div class="step-n">✅</div><div><div class="step-title">OpenEnv Spec Compliance</div><div class="step-desc">Typed Pydantic models, /step /reset /state /grader endpoints — verified.</div></div></div>
+            <div class="step-row"><div class="step-n">✅</div><div><div class="step-title">3+ Tasks with Graders</div><div class="step-desc">task_easy (0.95 target), task_medium (0.85), task_hard (0.75) — all scored 0.0–1.0.</div></div></div>
+            <div class="step-row"><div class="step-n">✅</div><div><div class="step-title">Dockerfile Build</div><div class="step-desc">HuggingFace-compatible Dockerfile with space.tag=openenv, port 7860.</div></div></div>
+            <div class="step-row"><div class="step-n">✅</div><div><div class="step-title">inference.py</div><div class="step-desc">Strict [START][STEP][END] stdout logging, OpenAI client, env var API_BASE_URL/HF_TOKEN/MODEL_NAME.</div></div></div>
+            <div class="step-row"><div class="step-n">✅</div><div><div class="step-title">Real-World Domain</div><div class="step-desc">Workforce scheduling — genuinely used in hospitals, retail, call centers daily.</div></div></div>
+            <div class="step-row"><div class="step-n" style="background:var(--amber-d);border-color:var(--amber);color:var(--amber)">⏳</div><div><div class="step-title">HF Space Deploy</div><div class="step-desc">Push repo to HuggingFace Spaces — then run validation script.</div></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">🔗 Quick Links</div></div>
+          <div class="card-body flex gap-2" style="flex-wrap:wrap">
+            <a href="/docs" target="_blank" class="btn btn-ghost">📄 API Docs</a>
+            <a href="/openapi.json" target="_blank" class="btn btn-ghost">⚙ OpenAPI</a>
+            <a href="/health" target="_blank" class="btn btn-ghost">💚 Health Check</a>
+            <a href="/grader" target="_blank" class="btn btn-ghost">🏆 Grader</a>
+            <a href="/tasks" target="_blank" class="btn btn-ghost">📋 Tasks</a>
+          </div>
+        </div>
+      </div>
+
+    </main><!-- end main-content -->
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel" id="rightPanel">
+      <div class="section-title">Metrics & Simulation</div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="m-row">
+            <div class="m-top"><span class="m-lbl">Unmet Demand</span><span class="m-val text-amber font-mono" id="rp-unmet">—</span></div>
+          </div>
+          <div class="m-row">
+            <div class="m-top"><span class="m-lbl">Fairness Score</span><span class="m-val text-green font-mono" id="rp-fairness">—</span></div>
+            <div class="m-track"><div class="m-fill" id="rp-fairness-bar" style="width:0%;background:linear-gradient(90deg,var(--sky),var(--green))"></div></div>
+          </div>
+          <div class="m-row">
+            <div class="m-top"><span class="m-lbl">Utilization</span><span class="m-val font-mono" id="rp-util">—</span></div>
+            <div class="m-track"><div class="m-fill" id="rp-util-bar" style="width:0%;background:linear-gradient(90deg,var(--blue),var(--sky))"></div></div>
+          </div>
+          <div class="m-row">
+            <div class="m-top"><span class="m-lbl">Skill Coverage</span><span class="m-val text-sky font-mono" id="rp-skill">—</span></div>
+            <div class="m-track"><div class="m-fill" id="rp-skill-bar" style="width:0%;background:linear-gradient(90deg,var(--purple),var(--sky))"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">Grading</div>
+      <div class="card">
+        <div class="card-body">
+          <div class="gauge-wrap">
+            <svg viewBox="0 0 140 80" style="width:130px;height:75px">
+              <path d="M10,75 A60,60 0 0,1 130,75" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="14" stroke-linecap="round"/>
+              <path d="M10,75 A60,60 0 0,1 130,75" fill="none" stroke="var(--green)" stroke-width="14" stroke-linecap="round" stroke-dasharray="188" stroke-dashoffset="188" id="rp-gaugeArc" style="transition:stroke-dashoffset 1.2s ease"/>
+            </svg>
+            <div class="gauge-val" id="rp-score" style="font-size:1.5rem">—</div>
+            <div class="gauge-grade" id="rp-grade" style="background:var(--green-d);color:var(--green)">—</div>
+          </div>
+          <div class="divider"></div>
+          <div id="rp-breakdown" style="font-size:.7rem">Run the agent to see scores.</div>
+        </div>
+      </div>
+
+      <div class="section-title">Reward Progression</div>
+      <div class="card">
+        <div class="card-body" style="padding:.5rem">
+          <div style="height:100px"><canvas id="rpRewardChart"></canvas></div>
+          <div class="flex items-center gap-1 mt-1 text-xs text-muted">
+            <span>Steps: <span id="rp-steps" class="text-sky font-mono">0</span></span>
+            <span style="margin-left:auto">Ret: <span id="rp-ret" class="text-green font-mono">0.00</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">Step Control</div>
+      <div class="card">
+        <div class="card-body flex gap-1" style="flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" style="flex:1" onclick="resetSim()">↺ Reset</button>
+          <button class="btn btn-amber btn-sm" style="flex:1" onclick="stepSim()">+1 Step</button>
+          <button class="btn btn-primary btn-sm" style="flex:1" onclick="runAgent()">▶ Run</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end body-layout -->
+</div><!-- end app-shell -->
+
+<!-- LEAVE MODAL -->
+<div class="modal-bg" id="leaveModal">
+  <div class="modal">
+    <div class="modal-title">🏖 Apply for Leave</div>
+    <div class="fl">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">From Date</label><input type="date" class="form-input" id="leaveFrom"/></div>
+        <div class="form-group"><label class="form-label">To Date</label><input type="date" class="form-input" id="leaveTo"/></div>
+      </div>
+      <div class="form-group"><label class="form-label">Reason</label><input class="form-input" id="leaveReason" placeholder="e.g. medical, personal"/></div>
+    </div>
+    <div class="section-title" style="margin-top:.75rem">AI Resolution Strategy</div>
+    <div id="leaveOption1" class="card" style="margin-bottom:.4rem;cursor:pointer;border:1px solid var(--border)" onclick="selectLeaveOpt(1)">
+      <div class="card-body"><div style="font-weight:700">🔀 Partition Work</div><div class="text-xs text-muted mt-1">Reassign shifts to available teammates. AI picks the best candidate per shift.</div></div>
+    </div>
+    <div id="leaveOption2" class="card" style="cursor:pointer;border:1px solid var(--border)" onclick="selectLeaveOpt(2)">
+      <div class="card-body"><div style="font-weight:700">📅 Postpone Shifts</div><div class="text-xs text-muted mt-1">Leave shifts unassigned and flag for later scheduling. Incurs coverage penalty.</div></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeLeaveModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmLeave()">⚡ Execute & Re-optimize</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD EMP MODAL -->
+<div class="modal-bg" id="addEmpModal">
+  <div class="modal">
+    <div class="modal-title">➕ Add New Employee</div>
+    <div class="fl">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="newEmpName" placeholder="Full Name"/></div>
+        <div class="form-group"><label class="form-label">Max Hours/Week</label><input type="number" class="form-input" id="newEmpHours" value="40" min="8" max="80"/></div>
+      </div>
+      <div class="form-group"><label class="form-label">Skills (comma separated)</label><input class="form-input" id="newEmpSkills" placeholder="nurse, triage, ICU"/></div>
+      <div class="form-group"><label class="form-label">Preferred Shift</label>
+        <select class="form-select" id="newEmpPref"><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="night">Night</option></select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAddEmpModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddEmployee()">Add Employee</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div class="toasts" id="toastContainer"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

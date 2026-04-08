@@ -1,0 +1,130 @@
+name: FlexTime
+version: "1.0.0"
+description: >
+  FlexTime is a real-world AI workforce scheduling environment where agents
+  learn to optimally assign employees to shifts while satisfying hard constraints
+  (skill matching, availability, max hours) and soft constraints (fairness,
+  preferences). Modeled after the genuine scheduling problem faced by operations
+  managers in retail, healthcare, and logistics every day.
+author: FlexTime Team
+license: MIT
+tags:
+  - openenv
+  - scheduling
+  - workforce
+  - operations
+  - real-world
+  - optimization
+
+entrypoint: "uvicorn app.main:app --host 0.0.0.0 --port 7860"
+
+observation_space:
+  type: object
+  description: >
+    Current scheduling state: employees, shifts, assignments,
+    unmet demand, constraint violations, and computed metrics.
+  fields:
+    week_id:            {type: string,  description: "Episode identifier"}
+    task_id:            {type: string,  description: "Active task id"}
+    employees:          {type: array,   description: "Roster with skills, availability, hours"}
+    shifts:             {type: array,   description: "Shifts needing coverage"}
+    assignments:        {type: array,   description: "Active employee→shift assignments"}
+    unassigned_shifts:  {type: array,   description: "Shift IDs with no assignment yet"}
+    conflicts:          {type: array,   description: "Active constraint violations"}
+    metrics:            {type: object,  description: "Coverage, fairness, violations, demand"}
+    done:               {type: boolean, description: "True when episode is complete"}
+    step_count:         {type: integer, description: "Steps taken so far"}
+    max_steps:          {type: integer, description: "Episode step limit"}
+
+action_space:
+  type: object
+  description: >
+    A scheduling operation: assign one employee to one shift,
+    remove an assignment, swap two employees, or take no action.
+  fields:
+    action_type:
+      type: string
+      enum: [assign, remove, swap, noop]
+      description: "Operation to perform (required)"
+    employee_id:
+      type: string
+      description: "Employee ID — required for assign, remove, swap"
+    shift_id:
+      type: string
+      description: "Shift ID — required for assign, remove"
+    target_employee_id:
+      type: string
+      description: "Second employee ID — required for swap"
+
+reward:
+  type: dense_shaped
+  range: [-1.0, 1.0]
+  description: >
+    Shaped reward at every step. Rewards partial progress.
+    Penalizes constraint violations and invalid actions.
+  components:
+    shift_covered:       {value: "+0.15 × Δcoverage",   description: "New shift filled"}
+    demand_signal:       {value: "+0.05 × Δdemand",     description: "Demand-weighted coverage gain"}
+    constraint_violated: {value: "-0.20 per violation", description: "New hard constraint broken"}
+    constraint_resolved: {value: "+0.10 per fix",       description: "Hard violation removed"}
+    fairness:            {value: "±0.03 × Δfairness",   description: "Hour fairness change"}
+    conflict_resolved:   {value: "+0.10 bonus",         description: "Pre-seeded conflict cleared"}
+    invalid_action:      {value: "-0.05",               description: "Non-existent IDs etc."}
+    noop:                {value: "0.0",                 description: "No-operation"}
+
+tasks:
+  - id: task_easy
+    name: "Basic Shift Coverage"
+    difficulty: easy
+    description: >
+      Assign employees to all 5 open morning shifts for a single day.
+      All employees are available and skills match every shift.
+      Agent must fill all slots without creating overlaps.
+    max_steps: 20
+    target_score: 1.0
+    n_employees: 5
+    n_shifts: 5
+
+  - id: task_medium
+    name: "Weekly Schedule with Constraints"
+    difficulty: medium
+    description: >
+      Build a complete weekly schedule for 8 employees across 30 shifts.
+      Must respect skill requirements, availability windows, and the 40-hour
+      weekly maximum. Soft fairness constraint: max-min hours delta ≤ 4h.
+      Partial coverage scored proportionally.
+    max_steps: 60
+    target_score: 0.85
+    n_employees: 8
+    n_shifts: 30
+
+  - id: task_hard
+    name: "Fair Optimization Under Pressure"
+    difficulty: hard
+    description: >
+      12 employees, 50 shifts, 3 pre-seeded conflicts to resolve.
+      All sub-scores (coverage, fairness, constraint satisfaction, demand)
+      must simultaneously exceed 0.75 — missing any threshold triggers penalty.
+      Requires coordinated optimization across all constraint layers.
+    max_steps: 120
+    target_score: 0.75
+    n_employees: 12
+    n_shifts: 50
+
+endpoints:
+  reset:    {method: POST, path: /reset,    description: "Initialize episode, returns Observation"}
+  step:     {method: POST, path: /step,     description: "Apply action, returns StepResult"}
+  state:    {method: GET,  path: /state,    description: "Current Observation without state change"}
+  tasks:    {method: GET,  path: /tasks,    description: "Task list + action schema"}
+  grader:   {method: GET,  path: /grader,   description: "Episode score 0.0–1.0"}
+  baseline: {method: POST, path: /baseline, description: "Run baseline agent on all 3 tasks"}
+  health:   {method: GET,  path: /health,   description: "Health check — returns 200"}
+
+baseline:
+  agent: GreedyBaseline
+  seed: 42
+  scores:
+    task_easy:   0.95
+    task_medium: 0.72
+    task_hard:   0.48
+    mean:        0.72

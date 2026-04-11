@@ -17,6 +17,7 @@ from openai import OpenAI
 
 from server.engine import FlexTimeEnv, TASK_CONFIGS
 from server.models import Action
+from agent.llm_agent import LLMAgent
 
 # Mandatory environment variables with defaults
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
@@ -27,26 +28,6 @@ BENCHMARK = "FlexTime"
 MAX_STEPS = 120
 TEMPERATURE = 0.0
 MAX_TOKENS = 120
-
-SYSTEM_PROMPT = textwrap.dedent(
-    """
-    You are an expert workforce scheduling agent.
-    Your job: assign employees to shifts optimally.
-    
-    RULES (must follow):
-    - Employee skills must include the shift's required_skill
-    - Employee must be available on the shift's day (availability[day] == 1)
-    - Employee cannot exceed max_hours_per_week
-    - No two shifts for the same employee on the same (day, period)
-    
-    You receive the current schedule state as JSON.
-    Respond with ONLY a valid JSON action object — no explanation, no markdown.
-    
-    Valid action formats:
-      {"action_type": "assign", "employee_id": "emp001", "shift_id": "shf042"}
-      {"action_type": "noop"}
-    """
-).strip()
 
 
 def log_start(task: str, env: str, model: str) -> None:
@@ -70,43 +51,7 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> No
     )
 
 
-def get_model_action(client: OpenAI, obs_dict: dict) -> dict:
-    # Trim Observation to ensure it fits context and removes noisy metrics
-    slim = {
-        "unassigned_shifts": obs_dict["unassigned_shifts"][:8],
-        "employees": [
-            {k: e[k] for k in
-             ("id", "name", "skills", "availability", "assigned_hours", "max_hours_per_week", "preferred_shift")}
-            for e in obs_dict["employees"]
-        ],
-        "shifts": [
-            {k: s[k] for k in ("id", "day", "period", "required_skill", "duration_hours")}
-            for s in obs_dict["shifts"]
-            if s["id"] in obs_dict["unassigned_shifts"][:8]
-        ],
-    }
-    
-    try:
-        completion = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": json.dumps(slim)},
-            ],
-            temperature=TEMPERATURE,
-            max_tokens=MAX_TOKENS,
-            stream=False,
-        )
-        text = (completion.choices[0].message.content or "").strip()
-        text = text.replace("```json", "").replace("```", "").strip()
-        return json.loads(text)
-    except Exception as exc:
-        # Emit an error logically, but fallback to noop to preserve the run bounds instead of crashing
-        print(f"[DEBUG] Model request failed: {exc}", flush=True)
-        # Note: If no token is provided, this handles graceful skip
-        return {"action_type": "noop"}
-
-def run_task(client: OpenAI, env: FlexTimeEnv, task_id: str):
+def run_task(agent: LLMAgent, env: FlexTimeEnv, task_id: str):
     log_start(task=task_id, env=BENCHMARK, model=MODEL_NAME)
     
     rewards: List[float] = []
@@ -124,12 +69,23 @@ def run_task(client: OpenAI, env: FlexTimeEnv, task_id: str):
         cur_max_steps = min(MAX_STEPS, cfg["max_steps"])
         target_score = cfg["target_score"]
         
+        agent.reset()
+        
+        last_reward = None
+        last_error = None
+        
         for step in range(1, cur_max_steps + 1):
             if done:
                 break
-            
+                
+            # Smart Early Termination
+            if len(rewards) >= 3 and rewards[-1] == rewards[-2] == rewards[-3]:
+                # Terminate if same reward repeats 3 times (no progress)
+                done = True
+                break
+                
             # Predict
-            action_dict = get_model_action(client, obs_dict)
+            action_dict = agent.generate_action(obs_dict, last_reward, last_error)
             action_str = json.dumps(action_dict).replace(' ', '')
             
             # Execute
@@ -149,6 +105,9 @@ def run_task(client: OpenAI, env: FlexTimeEnv, task_id: str):
             rewards.append(reward)
             steps_taken = step
             
+            last_reward = reward
+            last_error = error
+            
             log_step(step=step, action=action_str, reward=reward, done=done, error=error)
         
         # Grading
@@ -164,12 +123,17 @@ def run_task(client: OpenAI, env: FlexTimeEnv, task_id: str):
 
 
 def main():
-    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+    if not HF_TOKEN:
+        print("[DEBUG] HF_TOKEN is missing. This will crash. Please set HF_TOKEN.", flush=True)
+        # We allow client initialization crash if token is missing as it enforces the constraint.
+        
+    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN or "dummy-key")
     env = FlexTimeEnv()
+    agent = LLMAgent(client, MODEL_NAME)
     
     tasks = ["task_easy", "task_medium", "task_hard"]
     for t_id in tasks:
-        run_task(client, env, t_id)
+        run_task(agent, env, t_id)
 
 
 if __name__ == "__main__":

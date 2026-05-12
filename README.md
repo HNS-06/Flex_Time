@@ -348,20 +348,50 @@ pytest tests/ --cov=app --cov-report=html
 flextime/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py          # FastAPI application, all endpoints
-│   ├── engine.py        # Core environment: state, step, reward, grader
-│   ├── models.py        # Pydantic typed models (Observation, Action, Reward)
+│   │
+│   ├── main.py
+│   │   # FastAPI application entry point
+│   │   # Defines all API endpoints and request handling
+│   │
+│   ├── engine.py
+│   │   # Core environment implementation
+│   │   # Handles state transitions, step execution,
+│   │   # reward calculation, and grading logic
+│   │
+│   ├── models.py
+│   │   # Pydantic typed models and schemas
+│   │   # Includes Observation, Action, and Reward models
+│   │
 │   └── static/
-│       └── index.html   # Interactive demo UI
+│       └── index.html
+│           # Interactive frontend demo interface
+│
 ├── scripts/
 │   ├── __init__.py
-│   └── baseline.py      # Greedy + LLM baseline agents & CLI
+│   │
+│   └── baseline.py
+│       # Baseline agent implementations
+│       # Includes Greedy agent, LLM agent,
+│       # and command-line execution utilities
+│
 ├── tests/
-│   └── test_environment.py  # Full pytest test suite
-├── openenv.yaml         # OpenEnv spec metadata
+│   └── test_environment.py
+│       # Pytest-based testing suite
+│       # Tests environment logic, rewards,
+│       # transitions, and API behavior
+│
+├── openenv.yaml
+│   # OpenEnv environment specification metadata
+│
 ├── requirements.txt
+│   # Python package dependencies
+│
 ├── Dockerfile
+│   # Docker container setup and runtime configuration
+│
 └── README.md
+    # Project overview, installation,
+    # usage instructions, and API documentation
 ```
 
 ---
